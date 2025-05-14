@@ -1,0 +1,7 @@
+{
+    "/customers": {
+      "target": "http://192.168.40.112:30081",
+      "secure": false
+    }
+  }
+  
