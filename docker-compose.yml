@@ -10,14 +10,17 @@ services:
     ports:
       - "3306:3306"
     volumes:
-      - mysql-data:/var/lib/mysql
+      - type: volume
+        source: mysql_data
+        target: /var/lib/mysql
     networks:
       - my-network
 
-  spring-app:
+  backend:
     build:
-      context: .
+      context: ./back
       dockerfile: Dockerfile
+    container_name: backend-container
     ports:
       - "8080:8080"
     depends_on:
@@ -27,14 +30,28 @@ services:
       - SPRING_DATASOURCE_USERNAME=root
       - SPRING_DATASOURCE_PASSWORD=root
       - SPRING_JPA_HIBERNATE_DDL_AUTO=update
-      - SPRING_JPA_PROPERTIES_HIBERNATE_DIALECT=org.hibernate.dialect.MySQL8Dialect
       - SPRING_JPA_SHOW_SQL=true
+      - SERVER_ADDRESS=0.0.0.0
+      - SERVER_PORT=8080
+
+    networks:
+      - my-network
+
+  angular-app:
+    build:
+      context: ./front
+      dockerfile: Dockerfile
+    container_name: angular_container
+    ports:
+      - "4200:80"
+    depends_on:
+      - backend
     networks:
       - my-network
 
 volumes:
-  mysql-data:
+  mysql_data:
 
 networks:
   my-network:
-
+    driver: bridge

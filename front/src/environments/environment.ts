@@ -4,7 +4,7 @@
 
 export const environment = {
   production: false,
-  backendHost : "http://192.168.40.112:30081"
+  backendHost : "http://localhost:8080"
 
 };
 
