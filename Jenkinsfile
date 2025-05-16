@@ -85,14 +85,14 @@ pipeline {
         script {
           dir('back') {
             sh """
-              docker build -t rima603/backProjet:${BUILD_NUMBER} .
-              docker tag rima603/backProjet:${BUILD_NUMBER} rima603/backProjet:latest
+              docker build -t rima603/backprojet:${BUILD_NUMBER} .
+              docker tag rima603/backprojet:${BUILD_NUMBER} rima603/backprojet:latest
             """
           }
           dir('front') {
             sh """
-              docker build -t rima603/frontProjet:${BUILD_NUMBER} .
-              docker tag rima603/frontProjet:${BUILD_NUMBER} rima603/frontProjet:latest
+              docker build -t rima603/frontprojet:${BUILD_NUMBER} .
+              docker tag rima603/frontprojet:${BUILD_NUMBER} rima603/frontprojet:latest
             """
           }
         }
@@ -104,8 +104,8 @@ pipeline {
         script {
           sh """
             export TRIVY_TIMEOUT=10m
-            trivy image rima603/backProjet:${BUILD_NUMBER} || true
-            trivy image rima603/frontProjet:${BUILD_NUMBER} || true
+            trivy image rima603/backprojet:${BUILD_NUMBER} || true
+            trivy image rima603/frontprojet:${BUILD_NUMBER} || true
           """
         }
       }
@@ -116,10 +116,10 @@ pipeline {
         withCredentials([usernamePassword(credentialsId: 'dockerhub', usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
           sh """
             echo "${DOCKER_PASS}" | docker login -u "${DOCKER_USER}" --password-stdin
-            docker push rima603/frontProjet:${BUILD_NUMBER}
-            docker push rima603/frontProjet:latest
-            docker push rima603/backProjet:${BUILD_NUMBER}
-            docker push rima603/backProjet:latest
+            docker push rima603/frontprojet:${BUILD_NUMBER}
+            docker push rima603/frontprojet:latest
+            docker push rima603/backprojet:${BUILD_NUMBER}
+            docker push rima603/backprojet:latest
           """
         }
       }
