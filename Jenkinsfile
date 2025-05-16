@@ -104,8 +104,8 @@ pipeline {
         script {
           sh """
             export TRIVY_TIMEOUT=10m
-            trivy image rima603/backprojet:${BUILD_NUMBER} || true
-            trivy image rima603/frontprojet:${BUILD_NUMBER} || true
+               docker run --rm -v /var/run/docker.sock:/var/run/docker.sock aquasec/trivy image rima603/backprojet:${BUILD_NUMBER} || true
+              docker run --rm -v /var/run/docker.sock:/var/run/docker.sock aquasec/trivy image rima603/frontprojet:${BUILD_NUMBER} || true
           """
         }
       }
