@@ -50,7 +50,7 @@ pipeline {
     stage("Test") {
       steps {
         script {
-          sh 'cd back && mvn test'
+          sh 'cd back && mvn clean test -Ptest'
         }
       }
     }
