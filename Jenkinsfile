@@ -30,7 +30,8 @@ pipeline {
         stage("SpringBoot") {
           steps {
             dir('back') {
-              sh 'mvn clean package -DskipTests'
+             sh 'mvn clean install -DskipTests=true'
+
             }
           }
         }
