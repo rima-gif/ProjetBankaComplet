@@ -4,7 +4,7 @@ pipeline {
   environment {
     MAVEN_OPTS = '-Xmx1024m'
     DOCKER_HUB_USER = 'rima603'
-    DOCKER_HUB_PASSWORD = credentials('dockerhub') 
+    DOCKER_HUB_PASSWORD = credentials('dockerhub')
     SONARQUBE_SERVER = 'sonarqube'
   }
 
@@ -15,14 +15,12 @@ pipeline {
       }
     }
 
-    stage("Checkout from SCM") {
+    stage("Checkout Application Code") {
       steps {
         git(
           branch: 'main',
           credentialsId: 'github',
-          url: 'https://github.com/rima-gif/ProjetBankaComplet.git',
-          poll: true,
-          changelog: true
+          url: 'https://github.com/rima-gif/ProjetBankaComplet.git'
         )
       }
     }
@@ -49,9 +47,7 @@ pipeline {
 
     stage("Test") {
       steps {
-        script {
-          sh 'cd back && mvn clean test -Ptest'
-        }
+        sh 'cd back && mvn test -Ptest'
       }
     }
 
@@ -73,9 +69,6 @@ pipeline {
               }
             }
           }
-        }
-        failure {
-          echo "SonarQube analysis failed"
         }
       }
     }
@@ -100,15 +93,13 @@ pipeline {
     }
 
     stage("Trivy Security Scan") {
-    steps {
-        script {
-            sh """
-                docker run --rm -v /var/run/docker.sock:/var/run/docker.sock aquasec/trivy image rima603/backprojet:${BUILD_NUMBER} || true
-                docker run --rm -v /var/run/docker.sock:/var/run/docker.sock aquasec/trivy image rima603/frontprojet:${BUILD_NUMBER} || true
-            """
-        }
+      steps {
+        sh """
+          docker run --rm -v /var/run/docker.sock:/var/run/docker.sock aquasec/trivy image rima603/backprojet:${BUILD_NUMBER} || true
+          docker run --rm -v /var/run/docker.sock:/var/run/docker.sock aquasec/trivy image rima603/frontprojet:${BUILD_NUMBER} || true
+        """
+      }
     }
-}
 
     stage("Push Docker Images to Docker Hub") {
       steps {
@@ -120,6 +111,30 @@ pipeline {
             docker push rima603/backprojet:${BUILD_NUMBER}
             docker push rima603/backprojet:latest
           """
+        }
+      }
+    }
+
+    stage("Update Kubernetes Manifests") {
+      steps {
+        dir('k8s-manifests') {
+          // Cloner le dépôt des manifests
+          git branch: 'main', credentialsId: 'github', url: 'https://github.com/rima-gif/k8s-manifests.git'
+
+          // Modifier les tags dans les fichiers YAML
+          sh """
+            sed -i 's|image: rima603/backprojet:.*|image: rima603/backprojet:${BUILD_NUMBER}|' backend/deployment.yaml
+            sed -i 's|image: rima603/frontprojet:.*|image: rima603/frontprojet:${BUILD_NUMBER}|' frontend/deployment.yaml
+          """
+
+          // Config Git
+          sh '''
+            git config user.email "achourryma971@gmail.com"
+            git config user.name "rima-gif"
+            git add backend/deployment.yaml frontend/deployment.yaml
+            git commit -m "Update image tags to build ${BUILD_NUMBER}" || echo "No changes to commit"
+            git push origin main
+          '''
         }
       }
     }
