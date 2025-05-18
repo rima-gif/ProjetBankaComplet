@@ -15,15 +15,15 @@ import java.util.List;
 @EnableWebSecurity
 public class SecurityConfig {
 
-    @Bean
+   @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
-            .cors()
-            .and()
             .csrf().disable()
             .authorizeHttpRequests(auth -> auth
-                .anyRequest().permitAll()
-            );
+                .requestMatchers("/github_webhook").permitAll()
+                .anyRequest().authenticated()
+            )
+            .cors();
         return http.build();
     }
 
