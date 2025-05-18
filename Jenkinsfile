@@ -118,16 +118,13 @@ pipeline {
     stage("Update Kubernetes Manifests") {
       steps {
         dir('k8s-manifests') {
-          // Cloner le dépôt des manifests
           git branch: 'main', credentialsId: 'github', url: 'https://github.com/rima-gif/k8s-manifests.git'
 
-          // Modifier les tags dans les fichiers YAML
           sh """
             sed -i 's|image: rima603/backprojet:.*|image: rima603/backprojet:${BUILD_NUMBER}|' backend/deployment.yaml
             sed -i 's|image: rima603/frontprojet:.*|image: rima603/frontprojet:${BUILD_NUMBER}|' frontend/deployment.yaml
           """
 
-          // Config Git
           sh '''
             git config user.email "achourryma971@gmail.com"
             git config user.name "rima-gif"
