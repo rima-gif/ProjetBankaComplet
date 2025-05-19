@@ -7,9 +7,7 @@ pipeline {
     DOCKER_HUB_PASSWORD = credentials('dockerhub')
     SONARQUBE_SERVER = 'sonarqube'
     SONAR_HOST_URL = 'http://192.168.40.111:9000'
-    SONAR_AUTH_TOKEN = credentials('jenkins-sonarqube-token	')
-
-    
+    SONAR_AUTH_TOKEN = credentials('jenkins-sonarqube-token')
   }
 
   stages {
@@ -49,28 +47,26 @@ pipeline {
       }
     }
 
-   stage('Start MySQL for Tests') {
-  steps {
-    script {
-      sh '''
-        docker rm -f mysql-test || true
-        docker run -d --name mysql-test -e MYSQL_ROOT_PASSWORD=root -e MYSQL_DATABASE=BankDB -p 3306:3306 mysql:8.0
-        echo "Waiting for MySQL to be ready..."
-        for i in {1..15}; do
-          docker exec mysql-test mysqladmin ping -proot && break
-          sleep 2
-        done
-      '''
+    stage('Start MySQL for Tests') {
+      steps {
+        script {
+          sh '''
+            docker rm -f mysql-test || true
+            docker run -d --name mysql-test -e MYSQL_ROOT_PASSWORD=root -e MYSQL_DATABASE=BankDB -p 3306:3306 mysql:8.0
+            echo "Waiting for MySQL to be ready..."
+            for i in {1..15}; do
+              docker exec mysql-test mysqladmin ping -proot && break
+              sleep 2
+            done
+          '''
+        }
+      }
     }
-  }
-}
-
 
     stage("Run Backend Tests") {
       steps {
         dir('back') {
-         sh 'mvn test'
-
+          sh 'mvn test'
         }
       }
     }
@@ -95,22 +91,21 @@ pipeline {
           }
         }
       }
-  post {
-  success {
-    script {
-      timeout(time: 1, unit: 'MINUTES') {
-        def qualityGate = waitForQualityGate()
-        if (qualityGate.status != 'OK') {
-          echo "WARNING: SonarQube Quality Gate failed: ${qualityGate.status}"
-          // Ne pas arrêter la pipeline
-        } else {
-          echo "SonarQube Quality Gate passed."
+      post {
+        success {
+          script {
+            timeout(time: 1, unit: 'MINUTES') {
+              def qualityGate = waitForQualityGate()
+              if (qualityGate.status != 'OK') {
+                echo "WARNING: SonarQube Quality Gate failed: ${qualityGate.status}"
+              } else {
+                echo "SonarQube Quality Gate passed."
+              }
+            }
+          }
         }
       }
     }
-  }
-}
-
 
     stage("Build Docker Images") {
       steps {
