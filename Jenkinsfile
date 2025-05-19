@@ -65,7 +65,8 @@ pipeline {
     stage("Run Backend Tests") {
       steps {
         dir('back') {
-          sh 'mvn test -Ptest'
+         sh 'mvn test'
+
         }
       }
     }
