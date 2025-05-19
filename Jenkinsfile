@@ -6,6 +6,10 @@ pipeline {
     DOCKER_HUB_USER = 'rima603'
     DOCKER_HUB_PASSWORD = credentials('dockerhub')
     SONARQUBE_SERVER = 'sonarqube'
+    SONAR_HOST_URL = 'http://192.168.40.111:9000'
+    SONAR_AUTH_TOKEN = credentials('jenkins-sonarqube-token	')
+
+    
   }
 
   stages {
@@ -81,10 +85,13 @@ pipeline {
     }
 
     stage("SonarQube Analysis") {
+      environment {
+        SONAR_AUTH_TOKEN = credentials('jenkins-sonarqube-token')
+      }
       steps {
         dir('back') {
           withSonarQubeEnv('sonarqube') {
-            sh 'mvn sonar:sonar'
+            sh "mvn sonar:sonar -Dsonar.host.url=${env.SONAR_HOST_URL} -Dsonar.login=${env.SONAR_AUTH_TOKEN}"
           }
         }
       }
@@ -101,6 +108,7 @@ pipeline {
         }
       }
     }
+
 
     stage("Build Docker Images") {
       steps {
