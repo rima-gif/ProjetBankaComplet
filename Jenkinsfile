@@ -48,21 +48,24 @@ pipeline {
       }
     }
 
-    stage('Start MySQL for Tests') {
-      steps {
-        script {
-          sh '''
-            docker rm -f mysql-test || true
-            docker run -d --name mysql-test -e MYSQL_ROOT_PASSWORD=root -e MYSQL_DATABASE=BankDB -p 3306:3306 mysql:8.0
-            echo "Waiting for MySQL to be ready..."
-            for i in {1..15}; do
-              docker exec mysql-test mysqladmin ping -proot && break
-              sleep 2
-            done
-          '''
-        }
-      }
+   stage('Start MySQL for Tests') {
+  steps {
+    script {
+      sh '''
+        docker rm -f mysql-test || true
+        docker run -d --name mysql-test -e MYSQL_ROOT_PASSWORD=root -e MYSQL_DATABASE=BankDB -p 3306:3306 mysql:8.0
+
+        echo "Attente de démarrage de MySQL..."
+        for i in {1..20}; do
+          docker exec mysql-test mysqladmin ping -h127.0.0.1 -proot && echo "✅ MySQL prêt." && break
+          echo " En attente ($i)..."
+          sleep 3
+        done
+      '''
     }
+  }
+}
+
 
     stage("Run Backend Tests") {
       steps {
