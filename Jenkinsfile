@@ -126,14 +126,32 @@ pipeline {
       }
     }
 
-    stage("Trivy Security Scan") {
-      steps {
-        sh """
-          docker run --rm -v /var/run/docker.sock:/var/run/docker.sock aquasec/trivy image rima603/backprojet:${BUILD_NUMBER} || true
-          docker run --rm -v /var/run/docker.sock:/var/run/docker.sock aquasec/trivy image rima603/frontprojet:${BUILD_NUMBER} || true
-        """
-      }
+   stage("Trivy Security Scan") {
+  steps {
+    script {
+      sh '''
+        mkdir -p $HOME/.cache/trivy
+
+        docker run --rm \
+          -v /var/run/docker.sock:/var/run/docker.sock \
+          -v $HOME/.cache/trivy:/root/.cache/ \
+          -v $WORKSPACE:/scan \
+          aquasec/trivy image --timeout 5m --format table --output /scan/trivy-back.txt rima603/backprojet:${BUILD_NUMBER} || true
+
+        docker run --rm \
+          -v /var/run/docker.sock:/var/run/docker.sock \
+          -v $HOME/.cache/trivy:/root/.cache/ \
+          -v $WORKSPACE:/scan \
+          aquasec/trivy image --timeout 5m --format table --output /scan/trivy-front.txt rima603/frontprojet:${BUILD_NUMBER} || true
+      '''
     }
+  }
+  post {
+    always {
+      archiveArtifacts artifacts: '**/trivy-*.txt', fingerprint: true
+    }
+  }
+}
 
     stage("Push Docker Images to Docker Hub") {
       steps {
