@@ -9,31 +9,32 @@ pipeline {
   }
 
   stages {
-
-    stage("Clean Workspace") {
+    stage("Cleanup Workspace") {
       steps {
         cleanWs()
       }
     }
 
-    stage("Checkout Code") {
+    stage("Checkout Application Code") {
       steps {
-        git branch: 'main',
-            credentialsId: 'github',
-            url: 'https://github.com/rima-gif/ProjetBankaComplet.git'
+        git(
+          branch: 'main',
+          credentialsId: 'github',
+          url: 'https://github.com/rima-gif/ProjetBankaComplet.git'
+        )
       }
     }
 
-    stage("Build App") {
+    stage("Build Application") {
       parallel {
-        stage("Backend - Spring Boot") {
+        stage("SpringBoot") {
           steps {
             dir('back') {
               sh 'mvn clean install -DskipTests=true'
             }
           }
         }
-        stage("Frontend - Angular") {
+        stage("Angular") {
           steps {
             dir('front') {
               sh 'npm install'
@@ -44,24 +45,35 @@ pipeline {
       }
     }
 
-    stage("Test with MySQL") {
+    stage('Start MySQL for Tests') {
       steps {
         script {
           sh '''
-            docker-compose -f docker-compose.yml up -d mysql
-
+            docker run -d --name mysql-test -e MYSQL_ROOT_PASSWORD=root -e MYSQL_DATABASE=BankDB -p 3306:3306 mysql:8.0
             echo "Waiting for MySQL to be ready..."
             for i in {1..15}; do
-              docker exec mysql-container mysqladmin ping -proot && break
+              docker exec mysql-test mysqladmin ping -proot && break
               sleep 2
             done
-
-            cd back
-            mvn test -Ptest
-
-            docker-compose down
           '''
         }
+      }
+    }
+
+    stage("Run Backend Tests") {
+      steps {
+        dir('back') {
+          sh 'mvn test -Ptest'
+        }
+      }
+    }
+
+    stage('Stop MySQL') {
+      steps {
+        sh '''
+          docker stop mysql-test
+          docker rm mysql-test
+        '''
       }
     }
 
@@ -106,7 +118,7 @@ pipeline {
       }
     }
 
-    stage("Security Scan - Trivy") {
+    stage("Trivy Security Scan") {
       steps {
         sh """
           docker run --rm -v /var/run/docker.sock:/var/run/docker.sock aquasec/trivy image rima603/backprojet:${BUILD_NUMBER} || true
@@ -115,21 +127,21 @@ pipeline {
       }
     }
 
-    stage("Push Images to Docker Hub") {
+    stage("Push Docker Images to Docker Hub") {
       steps {
         withCredentials([usernamePassword(credentialsId: 'dockerhub', usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
           sh """
             echo "${DOCKER_PASS}" | docker login -u "${DOCKER_USER}" --password-stdin
-            docker push rima603/backprojet:${BUILD_NUMBER}
-            docker push rima603/backprojet:latest
             docker push rima603/frontprojet:${BUILD_NUMBER}
             docker push rima603/frontprojet:latest
+            docker push rima603/backprojet:${BUILD_NUMBER}
+            docker push rima603/backprojet:latest
           """
         }
       }
     }
 
-    stage("Update K8s Manifests for ArgoCD") {
+    stage("Update Kubernetes Manifests") {
       steps {
         dir('k8s-manifests') {
           git branch: 'main', credentialsId: 'github', url: 'https://github.com/rima-gif/k8s-manifests.git'
