@@ -11,6 +11,7 @@ pipeline {
   }
 
   stages {
+
     stage("Cleanup Workspace") {
       steps {
         cleanWs()
@@ -74,16 +75,13 @@ pipeline {
     stage('Stop MySQL') {
       steps {
         sh '''
-          docker stop mysql-test
-          docker rm mysql-test
+          docker stop mysql-test || true
+          docker rm mysql-test || true
         '''
       }
     }
 
     stage("SonarQube Analysis") {
-      environment {
-        SONAR_AUTH_TOKEN = credentials('jenkins-sonarqube-token')
-      }
       steps {
         dir('back') {
           withSonarQubeEnv('sonarqube') {
@@ -97,9 +95,9 @@ pipeline {
             timeout(time: 1, unit: 'MINUTES') {
               def qualityGate = waitForQualityGate()
               if (qualityGate.status != 'OK') {
-                echo "WARNING: SonarQube Quality Gate failed: ${qualityGate.status}"
+                error "SonarQube Quality Gate failed: ${qualityGate.status}"
               } else {
-                echo "SonarQube Quality Gate passed."
+                echo "✅ SonarQube Quality Gate passed."
               }
             }
           }
@@ -126,78 +124,85 @@ pipeline {
       }
     }
 
- stage("Trivy Security Scan") {
-  steps {
-    script {
-      sh '''
-        echo "⚡ Trivy scan rapide avec --scanners vuln uniquement..."
+    stage("Trivy Security Scan") {
+      steps {
+        script {
+          sh '''
+            echo "🔍 Trivy scan rapide sur les images Docker..."
 
-        mkdir -p $HOME/.cache/trivy
+            mkdir -p $HOME/.cache/trivy
 
-        # Scan backend
-        docker run --rm \
-          -v /var/run/docker.sock:/var/run/docker.sock \
-          -v $HOME/.cache/trivy:/root/.cache/ \
-          aquasec/trivy image \
-          --scanners vuln \
-          --skip-update \
-          --timeout 10m \
-          --severity HIGH,CRITICAL \
-          rima603/backprojet:${BUILD_NUMBER} || true
+            # Scan backend
+            docker run --rm \
+              -v /var/run/docker.sock:/var/run/docker.sock \
+              -v $HOME/.cache/trivy:/root/.cache/ \
+              aquasec/trivy image \
+              --scanners vuln \
+              --skip-update \
+              --timeout 10m \
+              --severity HIGH,CRITICAL \
+              rima603/backprojet:${BUILD_NUMBER} || true
 
-        # Scan frontend
-        docker run --rm \
-          -v /var/run/docker.sock:/var/run/docker.sock \
-          -v $HOME/.cache/trivy:/root/.cache/ \
-          aquasec/trivy image \
-          --scanners vuln \
-          --skip-update \
-          --timeout 2m \
-          --severity HIGH,CRITICAL \
-          rima603/frontprojet:${BUILD_NUMBER} || true
-      '''
+            # Scan frontend
+            docker run --rm \
+              -v /var/run/docker.sock:/var/run/docker.sock \
+              -v $HOME/.cache/trivy:/root/.cache/ \
+              aquasec/trivy image \
+              --scanners vuln \
+              --skip-update \
+              --timeout 2m \
+              --severity HIGH,CRITICAL \
+              rima603/frontprojet:${BUILD_NUMBER} || true
+          '''
+        }
+      }
     }
-  }
-
-  
-}
 
     stage("Push Docker Images to Docker Hub") {
       steps {
         withCredentials([usernamePassword(credentialsId: 'dockerhub', usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
           sh """
             echo "${DOCKER_PASS}" | docker login -u "${DOCKER_USER}" --password-stdin
-            docker push rima603/frontprojet:${BUILD_NUMBER}
-            docker push rima603/frontprojet:latest
             docker push rima603/backprojet:${BUILD_NUMBER}
             docker push rima603/backprojet:latest
+            docker push rima603/frontprojet:${BUILD_NUMBER}
+            docker push rima603/frontprojet:latest
           """
         }
       }
     }
 
     stage("Update Kubernetes Manifests") {
-  steps {
-    dir('k8s-manifests') {
-      git branch: 'main', credentialsId: 'github', url: 'https://github.com/rima-gif/k8s-manifests.git'
+      steps {
+        dir('k8s-manifests') {
+          git branch: 'main', credentialsId: 'github', url: 'https://github.com/rima-gif/k8s-manifests.git'
 
-      sh """
-        sed -i 's|image: rima603/backprojet:.*|image: rima603/backprojet:${BUILD_NUMBER}|' backend/deployment.yaml
-        sed -i 's|image: rima603/frontprojet:.*|image: rima603/frontprojet:${BUILD_NUMBER}|' frontend/deployment.yaml
-      """
+          sh """
+            sed -i 's|image: rima603/backprojet:.*|image: rima603/backprojet:${BUILD_NUMBER}|' backend/deployment.yaml
+            sed -i 's|image: rima603/frontprojet:.*|image: rima603/frontprojet:${BUILD_NUMBER}|' frontend/deployment.yaml
+          """
 
-      withCredentials([usernamePassword(credentialsId: 'github', usernameVariable: 'GIT_USER', passwordVariable: 'GIT_TOKEN')]) {
-        sh '''
-          git config user.email "achourryma971@gmail.com"
-          git config user.name "rima-gif"
-          git add backend/deployment.yaml frontend/deployment.yaml
-          git commit -m "Update image tags to build ${BUILD_NUMBER}" || echo "No changes to commit"
-          git remote set-url origin https://${GIT_USER}:${GIT_TOKEN}@github.com/rima-gif/k8s-manifests.git
-          git push origin main
-        '''
+          withCredentials([usernamePassword(credentialsId: 'github', usernameVariable: 'GIT_USER', passwordVariable: 'GIT_TOKEN')]) {
+            sh '''
+              git config user.email "achourryma971@gmail.com"
+              git config user.name "rima-gif"
+              git remote set-url origin https://${GIT_USER}:${GIT_TOKEN}@github.com/rima-gif/k8s-manifests.git
+              git add backend/deployment.yaml frontend/deployment.yaml
+              git commit -m "Update image tags to build ${BUILD_NUMBER}" || echo "No changes to commit"
+              git push origin main
+            '''
+          }
+        }
       }
     }
   }
-}
 
+  post {
+    failure {
+      echo " Pipeline échoué. Vérifie les logs et corrige les erreurs."
+    }
+    success {
+      echo " Pipeline exécuté avec succès !"
+    }
+  }
 }
