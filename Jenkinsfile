@@ -50,7 +50,7 @@ pipeline {
     script {
       sh '''
         docker rm -f mysql-test || true
-        docker run -d --name mysql-test -e MYSQL_ROOT_PASSWORD=root -e MYSQL_DATABASE=BankDB -p 3307:3306 mysql:8.0
+        docker run -d --name mysql-test -e MYSQL_ROOT_PASSWORD=root -e MYSQL_DATABASE=BankDB -p 3306:3306 mysql:8.0
         echo "Waiting for MySQL to be ready..."
         for i in {1..15}; do
           docker exec mysql-test mysqladmin ping -proot && break
