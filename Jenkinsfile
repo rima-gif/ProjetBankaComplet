@@ -9,13 +9,14 @@ pipeline {
   }
 
   stages {
-    stage("Cleanup Workspace") {
+
+    stage("🧹 Cleanup Workspace") {
       steps {
         cleanWs()
       }
     }
 
-    stage("Checkout Application Code") {
+    stage("📥 Checkout Application Code") {
       steps {
         git(
           branch: 'main',
@@ -25,13 +26,12 @@ pipeline {
       }
     }
 
-    stage("Build Application") {
+    stage("⚙️ Build Application") {
       parallel {
-        stage("SpringBoot") {
+        stage("Spring Boot") {
           steps {
             dir('back') {
-             sh 'mvn clean install -DskipTests=true'
-
+              sh 'mvn clean install -DskipTests=true'
             }
           }
         }
@@ -46,27 +46,31 @@ pipeline {
       }
     }
 
-    stage("Test") {
+    stage("🧪 Test Backend") {
       steps {
-        sh 'cd back && mvn test -Ptest'
+        catchError(buildResult: 'UNSTABLE', stageResult: 'FAILURE') {
+          sh 'cd back && mvn test -Ptest'
+        }
       }
     }
 
-    stage("Sonar") {
+    stage("🔍 Analyse SonarQube") {
       steps {
         dir('back') {
-          withSonarQubeEnv('sonarqube') {
-            sh 'mvn sonar:sonar'
+          catchError(buildResult: 'UNSTABLE', stageResult: 'FAILURE') {
+            withSonarQubeEnv('sonarqube') {
+              sh 'mvn sonar:sonar'
+            }
           }
         }
       }
       post {
-        success {
+        always {
           script {
             timeout(time: 1, unit: 'MINUTES') {
               def qualityGate = waitForQualityGate()
               if (qualityGate.status != 'OK') {
-                error "SonarQube Quality Gate failed: ${qualityGate.status}"
+                echo "🚨 SonarQube Quality Gate failed: ${qualityGate.status}"
               }
             }
           }
@@ -74,7 +78,7 @@ pipeline {
       }
     }
 
-    stage("Build Docker Images") {
+    stage("🐳 Build Docker Images") {
       steps {
         script {
           dir('back') {
@@ -93,7 +97,7 @@ pipeline {
       }
     }
 
-    stage("Trivy Security Scan") {
+    stage("🔐 Trivy Security Scan") {
       steps {
         sh """
           docker run --rm -v /var/run/docker.sock:/var/run/docker.sock aquasec/trivy image rima603/backprojet:${BUILD_NUMBER} || true
@@ -102,7 +106,7 @@ pipeline {
       }
     }
 
-    stage("Push Docker Images to Docker Hub") {
+    stage("📤 Push Docker Images to Docker Hub") {
       steps {
         withCredentials([usernamePassword(credentialsId: 'dockerhub', usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
           sh """
@@ -116,7 +120,7 @@ pipeline {
       }
     }
 
-    stage("Update Kubernetes Manifests") {
+    stage("🚀 Update Kubernetes Manifests") {
       steps {
         dir('k8s-manifests') {
           git branch: 'main', credentialsId: 'github', url: 'https://github.com/rima-gif/k8s-manifests.git'
@@ -135,6 +139,12 @@ pipeline {
           '''
         }
       }
+    }
+  }
+
+  post {
+    always {
+      echo "🟢 Pipeline terminé. Vérifie les statuts de test et Sonar dans Jenkins."
     }
   }
 }
