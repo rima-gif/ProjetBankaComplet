@@ -48,23 +48,37 @@ pipeline {
       }
     }
 
-   stage('Start MySQL for Tests') {
+  stage('Start MySQL for Tests') {
   steps {
     script {
       sh '''
         docker rm -f mysql-test || true
+
         docker run -d --name mysql-test -e MYSQL_ROOT_PASSWORD=root -e MYSQL_DATABASE=BankDB -p 3306:3306 mysql:8.0
 
-        echo "Attente de démarrage de MySQL..."
-        for i in {1..20}; do
-          docker exec mysql-test mysqladmin ping -h127.0.0.1 -proot && echo "✅ MySQL prêt." && break
-          echo " En attente ($i)..."
-          sleep 3
+        echo "⏳ Attente de démarrage de MySQL..."
+        for i in $(seq 1 20); do
+          if docker exec mysql-test mysqladmin ping -h127.0.0.1 -proot > /dev/null 2>&1; then
+            echo "✅ MySQL est prêt après $i tentatives."
+            break
+          else
+            echo "🔄 Tentative $i : MySQL pas encore prêt..."
+            sleep 3
+          fi
         done
+
+        # Si la boucle échoue après 20 essais, afficher les logs
+        if ! docker exec mysql-test mysqladmin ping -h127.0.0.1 -proot > /dev/null 2>&1; then
+          echo "❌ Échec : MySQL n'est pas prêt après 20 tentatives."
+          echo "📄 Logs du conteneur :"
+          docker logs mysql-test
+          exit 1
+        fi
       '''
     }
   }
 }
+
 
 
     stage("Run Backend Tests") {
