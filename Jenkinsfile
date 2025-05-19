@@ -177,24 +177,27 @@ pipeline {
     }
 
     stage("Update Kubernetes Manifests") {
-      steps {
-        dir('k8s-manifests') {
-          git branch: 'main', credentialsId: 'github', url: 'https://github.com/rima-gif/k8s-manifests.git'
+  steps {
+    dir('k8s-manifests') {
+      git branch: 'main', credentialsId: 'github', url: 'https://github.com/rima-gif/k8s-manifests.git'
 
-          sh """
-            sed -i 's|image: rima603/backprojet:.*|image: rima603/backprojet:${BUILD_NUMBER}|' backend/deployment.yaml
-            sed -i 's|image: rima603/frontprojet:.*|image: rima603/frontprojet:${BUILD_NUMBER}|' frontend/deployment.yaml
-          """
+      sh """
+        sed -i 's|image: rima603/backprojet:.*|image: rima603/backprojet:${BUILD_NUMBER}|' backend/deployment.yaml
+        sed -i 's|image: rima603/frontprojet:.*|image: rima603/frontprojet:${BUILD_NUMBER}|' frontend/deployment.yaml
+      """
 
-          sh '''
-            git config user.email "achourryma971@gmail.com"
-            git config user.name "rima-gif"
-            git add backend/deployment.yaml frontend/deployment.yaml
-            git commit -m "Update image tags to build ${BUILD_NUMBER}" || echo "No changes to commit"
-            git push origin main
-          '''
-        }
+      withCredentials([usernamePassword(credentialsId: 'github', usernameVariable: 'GIT_USER', passwordVariable: 'GIT_TOKEN')]) {
+        sh '''
+          git config user.email "achourryma971@gmail.com"
+          git config user.name "rima-gif"
+          git add backend/deployment.yaml frontend/deployment.yaml
+          git commit -m "Update image tags to build ${BUILD_NUMBER}" || echo "No changes to commit"
+          git remote set-url origin https://${GIT_USER}:${GIT_TOKEN}@github.com/rima-gif/k8s-manifests.git
+          git push origin main
+        '''
       }
     }
   }
+}
+
 }
