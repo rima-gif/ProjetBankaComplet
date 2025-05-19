@@ -141,7 +141,7 @@ pipeline {
           aquasec/trivy image \
           --scanners vuln \
           --skip-update \
-          --timeout 2m \
+          --timeout 10m \
           --severity HIGH,CRITICAL \
           rima603/backprojet:${BUILD_NUMBER} || true
 
