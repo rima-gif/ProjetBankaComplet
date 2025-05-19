@@ -98,12 +98,13 @@ pipeline {
       post {
         success {
           script {
-            timeout(time: 1, unit: 'MINUTES') {
-              def qualityGate = waitForQualityGate()
-              if (qualityGate.status != 'OK') {
-                error "SonarQube Quality Gate failed: ${qualityGate.status}"
-              }
-            }
+            timeout(time: 10, unit: 'MINUTES') {
+  def qualityGate = waitForQualityGate()
+  if (qualityGate.status != 'OK') {
+    error "SonarQube Quality Gate failed: ${qualityGate.status}"
+  }
+}
+
           }
         }
       }
