@@ -4,7 +4,7 @@
 
 export const environment = {
   production: true,
-  backendHost : "http://backend-service.default.svc.cluster.local:8080"
+  backendHost : "http://192.168.40.124:30081"
 
 };
 
