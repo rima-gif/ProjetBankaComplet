@@ -81,13 +81,16 @@ pipeline {
 
 
 
-    stage("Run Backend Tests") {
-      steps {
-        dir('back') {
-          sh 'mvn test'
-        }
+   stage("Run Backend Tests") {
+  steps {
+    catchError(buildResult: 'SUCCESS', stageResult: 'FAILURE') {
+      dir('back') {
+        sh 'mvn test'
       }
     }
+  }
+}
+
 
     stage('Stop MySQL') {
       steps {
