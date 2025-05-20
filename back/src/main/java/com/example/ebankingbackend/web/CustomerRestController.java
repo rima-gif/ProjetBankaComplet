@@ -10,7 +10,7 @@ import java.util.List;
 
 @RestController
 @AllArgsConstructor
-@CrossOrigin(origins = "http://192.168.40.121:4200")
+@CrossOrigin(origins = "*")
 public class CustomerRestController {
     private BankAccountService bankAccountService;
 
