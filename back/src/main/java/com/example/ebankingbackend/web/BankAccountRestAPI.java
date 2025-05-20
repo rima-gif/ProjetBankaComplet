@@ -8,7 +8,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 @RestController
-@CrossOrigin(origins = "http://192.168.40.121")
+@CrossOrigin(origins = "*")
 public class BankAccountRestAPI {
     private BankAccountService bankAccountService;
 
