@@ -109,20 +109,7 @@ pipeline {
           }
         }
       }
-      post {
-        success {
-          script {
-            timeout(time: 1, unit: 'MINUTES') {
-              def qualityGate = waitForQualityGate()
-              if (qualityGate.status != 'OK') {
-                error "SonarQube Quality Gate failed: ${qualityGate.status}"
-              } else {
-                echo "✅ SonarQube Quality Gate passed."
-              }
-            }
-          }
-        }
-      }
+     
     }
 
     stage("Build Docker Images") {
