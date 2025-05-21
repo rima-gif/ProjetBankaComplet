@@ -42,12 +42,17 @@ public class EbankingBackendApplication {
             bankAccountService.listCustomers().forEach(customer -> {
                 bankAccountService.saveCurrentBankAccount(getSecureRandomAmount(90000), customer.getId(), 9000);
                 bankAccountService.saveSavingBankAccount(getSecureRandomAmount(120000), customer.getId(), 5.5);
-                
+
                 bankAccountService.bankAccountsList().forEach(b -> {
-                    String accountId = b instanceof SavingBankAccountDTO ? 
-                            ((SavingBankAccountDTO) b).getId() : 
-                            ((CurrentBankAccountDTO) b).getId();
-                    
+                    String accountId;
+                    if (b instanceof SavingBankAccountDTO savingBankAccountDTO) {
+                        accountId = savingBankAccountDTO.getId();
+                    } else if (b instanceof CurrentBankAccountDTO currentBankAccountDTO) {
+                        accountId = currentBankAccountDTO.getId();
+                    } else {
+                        throw new IllegalStateException("Unknown account type: " + b.getClass());
+                    }
+
                     bankAccountService.credit(accountId, 10000 + getSecureRandomAmount(120000), "Credit");
                     bankAccountService.debit(accountId, 100 + getSecureRandomAmount(1200), "Debit");
                 });
@@ -56,9 +61,9 @@ public class EbankingBackendApplication {
     }
 
     @Bean
-    CommandLineRunner start(CustomerRepository customerRepository, 
-                          BankAccountRepository bankAccountRepository, 
-                          AccountOperationRepository accountOperationRepository) {
+    CommandLineRunner start(CustomerRepository customerRepository,
+                            BankAccountRepository bankAccountRepository,
+                            AccountOperationRepository accountOperationRepository) {
         return args -> {
             // Create customers
             Stream.of("Hassan", "Yassine", "Aziz").forEach(name -> {
@@ -88,13 +93,13 @@ public class EbankingBackendApplication {
                 savingAccount.setCreateAt(new Date());
                 savingAccount.setStatus(AccountStatus.CREATED);
                 savingAccount.setCustomer(cust);
-                savingAccount.setInterestRate(5.5); // Changed to match DTO version
+                savingAccount.setInterestRate(5.5);
                 bankAccountRepository.save(savingAccount);
             });
 
             // Create operations
             bankAccountRepository.findAll().forEach(account -> {
-                for (int i = 0; i < 5; i++) { // Create multiple operations per account
+                for (int i = 0; i < 5; i++) {
                     AccountOperation operation = new AccountOperation();
                     operation.setOperationDate(new Date());
                     operation.setAmount(getSecureRandomAmount(500));
