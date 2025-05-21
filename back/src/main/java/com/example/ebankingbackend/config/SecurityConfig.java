@@ -24,6 +24,7 @@ public class SecurityConfig {
         http
             .csrf().disable()
             .authorizeHttpRequests(auth -> auth
+                .requestMatchers("/customers/**", "/accounts/**").permitAll()  // autorise ces endpoints sans auth
                 .anyRequest().authenticated()
             )
             .cors(cors -> cors.configurationSource(corsConfigurationSource()));
