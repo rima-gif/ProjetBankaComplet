@@ -14,8 +14,8 @@ import org.springframework.boot.CommandLineRunner;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.annotation.Bean;
-import org.springframework.web.servlet.view.document.AbstractXlsView;
 
+import java.security.SecureRandom;
 import java.util.Date;
 import java.util.UUID;
 import java.util.stream.Stream;
@@ -23,80 +23,94 @@ import java.util.stream.Stream;
 @SpringBootApplication
 public class EbankingBackendApplication {
 
+    private static final SecureRandom secureRandom = new SecureRandom();
+
     public static void main(String[] args) {
         SpringApplication.run(EbankingBackendApplication.class, args);
     }
 
-    //@Bean
+    @Bean
     CommandLineRunner commandLineRunner(BankAccountService bankAccountService) {
         return args -> {
             Stream.of("Hassan", "Yassine", "Aziz").forEach(name -> {
                 CustomerDTO customer = new CustomerDTO();
                 customer.setName(name);
-                customer.setEmail(name + "@gmail.com");
+                customer.setEmail(name.toLowerCase() + "@gmail.com");
                 bankAccountService.saveCustomer(customer);
             });
+
             bankAccountService.listCustomers().forEach(customer -> {
-                bankAccountService.saveCurrentBankAccount(Math.random() * 90000, customer.getId(), 9000);
-                bankAccountService.saveSavingBankAccount(Math.random() * 120000, customer.getId(), 5.5);
+                bankAccountService.saveCurrentBankAccount(getSecureRandomAmount(90000), customer.getId(), 9000);
+                bankAccountService.saveSavingBankAccount(getSecureRandomAmount(120000), customer.getId(), 5.5);
+                
                 bankAccountService.bankAccountsList().forEach(b -> {
-                    String s ;
-                    if(b instanceof SavingBankAccountDTO) s = ((SavingBankAccountDTO) b).getId();
-                    else s = ((CurrentBankAccountDTO) b).getId();
-                    bankAccountService.credit(s, 10000 + Math.random() * 120000, "Credit");
-                    bankAccountService.debit(s, 100 + Math.random() * 1200, "Debit");
+                    String accountId = b instanceof SavingBankAccountDTO ? 
+                            ((SavingBankAccountDTO) b).getId() : 
+                            ((CurrentBankAccountDTO) b).getId();
+                    
+                    bankAccountService.credit(accountId, 10000 + getSecureRandomAmount(120000), "Credit");
+                    bankAccountService.debit(accountId, 100 + getSecureRandomAmount(1200), "Debit");
                 });
             });
         };
     }
 
-    //@Bean
-    CommandLineRunner start(CustomerRepository customerRepository, BankAccountRepository bankAccountRepository, AccountOperationRepository accountOperationRepository) {
+    @Bean
+    CommandLineRunner start(CustomerRepository customerRepository, 
+                          BankAccountRepository bankAccountRepository, 
+                          AccountOperationRepository accountOperationRepository) {
         return args -> {
-            Stream.of("Hassan","Yassine","Aziz").forEach(cust -> {
+            // Create customers
+            Stream.of("Hassan", "Yassine", "Aziz").forEach(name -> {
                 Customer customer = new Customer();
-                customer.setName(cust);
-                customer.setEmail(cust+"@gmail.com");
-
+                customer.setName(name);
+                customer.setEmail(name.toLowerCase() + "@gmail.com");
                 customerRepository.save(customer);
             });
 
+            // Create current accounts
             customerRepository.findAll().forEach(cust -> {
                 CurrentAccount currentAccount = new CurrentAccount();
                 currentAccount.setId(UUID.randomUUID().toString());
-                currentAccount.setBalance(Math.random() * 10000);
+                currentAccount.setBalance(getSecureRandomAmount(10000));
                 currentAccount.setCreateAt(new Date());
                 currentAccount.setStatus(AccountStatus.CREATED);
                 currentAccount.setCustomer(cust);
                 currentAccount.setOverDraft(9000);
-
                 bankAccountRepository.save(currentAccount);
             });
 
+            // Create saving accounts
             customerRepository.findAll().forEach(cust -> {
                 SavingAccount savingAccount = new SavingAccount();
-                savingAccount
-                        .setId(UUID.randomUUID().toString());
-                savingAccount.setBalance(Math.random() * 10000);
+                savingAccount.setId(UUID.randomUUID().toString());
+                savingAccount.setBalance(getSecureRandomAmount(10000));
                 savingAccount.setCreateAt(new Date());
                 savingAccount.setStatus(AccountStatus.CREATED);
                 savingAccount.setCustomer(cust);
-                savingAccount.setInterestRate(5);
-
+                savingAccount.setInterestRate(5.5); // Changed to match DTO version
                 bankAccountRepository.save(savingAccount);
             });
 
-            bankAccountRepository.findAll().forEach(ba -> {
-                AccountOperation accountOperation = new AccountOperation();
-                accountOperation.setOperationDate(new Date());
-                accountOperation.setAmount(Math.random()*500);
-                accountOperation.setType(Math.random() > 0.5?OperationType.DEBIT : OperationType.CREDIT);
-                accountOperation.setBankAccount(ba);
-
-                accountOperationRepository.save(accountOperation);
+            // Create operations
+            bankAccountRepository.findAll().forEach(account -> {
+                for (int i = 0; i < 5; i++) { // Create multiple operations per account
+                    AccountOperation operation = new AccountOperation();
+                    operation.setOperationDate(new Date());
+                    operation.setAmount(getSecureRandomAmount(500));
+                    operation.setType(getRandomOperationType());
+                    operation.setBankAccount(account);
+                    accountOperationRepository.save(operation);
+                }
             });
         };
     }
 
-}
+    private static double getSecureRandomAmount(double max) {
+        return secureRandom.nextDouble() * max;
+    }
 
+    private static OperationType getRandomOperationType() {
+        return secureRandom.nextBoolean() ? OperationType.DEBIT : OperationType.CREDIT;
+    }
+}
